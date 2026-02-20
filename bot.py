@@ -38,7 +38,7 @@ TOKEN_HABIS_MESSAGE = (
     "tungguin aku yah hehe 💕"
 )
 
-# ================= INSTRUCTION (JANGAN DIUBAH) =================
+# ================= INSTRUCTION =================
 STEM_INSTRUCTION = """ 
 
 ENTITY:
@@ -202,6 +202,42 @@ async def on_message(message: discord.Message):
     if message.author.bot:
         return
 
+    # ================= ANTI PING PROTECTION =================
+    PROTECTED_USER_ID = 1325065206388228173
+    ALLOWED_ROLE_IDS = {
+        1382697797983408220,
+        1382550485948432455,
+        1382594492753776732,
+        1388883323308474388,
+        1382666187560849419
+    }
+
+    def has_allowed_role(member: discord.Member):
+        return any(role.id in ALLOWED_ROLE_IDS for role in getattr(member, "roles", []))
+
+    is_mentioning = any(u.id == PROTECTED_USER_ID for u in message.mentions)
+
+    is_replying = (
+        message.reference
+        and message.reference.resolved
+        and getattr(message.reference.resolved.author, "id", None) == PROTECTED_USER_ID
+    )
+
+    if (is_mentioning or is_replying):
+        if isinstance(message.author, discord.Member) and has_allowed_role(message.author):
+            pass
+        else:
+            # hapus pesan pelanggar
+            try:
+                await message.delete()
+            except:
+                pass
+
+            WARN_MESSAGE = f" !! {message.author.mention} u do not have permission to mention this user."
+
+            await message.channel.send(WARN_MESSAGE)
+            return
+
     # AUTO REACT
     if (
         message.reference
@@ -212,7 +248,7 @@ async def on_message(message: discord.Message):
         await message.add_reaction("💕")
         return
 
-    # HANYA RESPON JIKA DI MENTION
+    # HANYA RESPON JIKA DI MENTION BOT
     if bot.user not in message.mentions:
         return
 
@@ -223,13 +259,12 @@ async def on_message(message: discord.Message):
         .strip()
     )
 
-    # KONTEKS REPLY
     if message.reference and message.reference.resolved:
         ref = message.reference.resolved
         if ref.content:
             clean = f"(Konteks sebelumnya): {ref.content}\n\nUser sekarang: {clean}"
 
-    # ================= IMAGE MODE (PRIORITAS) =================
+    # IMAGE MODE
     if message.attachments:
         att = message.attachments[0]
         if att.content_type and att.content_type.startswith("image"):
@@ -244,9 +279,9 @@ async def on_message(message: discord.Message):
                 await send_long_reply(message, reply)
             else:
                 await message.reply(TOKEN_HABIS_MESSAGE)
-            return  # ⬅️ PENTING: stop di sini
+            return
 
-    # ================= FILE MODE =================
+    # FILE MODE
     if message.attachments:
         att = message.attachments[0]
         fname = att.filename.lower()
